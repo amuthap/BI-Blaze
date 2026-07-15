@@ -162,7 +162,7 @@ export default function ReportsPage() {
               </div>
 
               {dashboardData.revenueTrend && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm" key={`trend-${reportDays}`}>
+                <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm" key={`trend-${reportDays}-${reportType}`}>
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold text-gray-900">
                       {reportType === 'financial' ? '💰 Revenue Trend (Financial Analysis)' : '📈 Revenue Trend'}
@@ -171,11 +171,11 @@ export default function ReportsPage() {
                       {reportDays} days
                     </span>
                   </div>
-                  <RevenueTrendChart key={`chart-${reportDays}`} data={dashboardData.revenueTrend} height={300} />
+                  <RevenueTrendChart key={`chart-${reportDays}-${reportType}`} data={dashboardData.revenueTrend} height={300} />
                 </div>
               )}
 
-              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm">
+              <div className="bg-white rounded-lg border border-gray-200 p-6 shadow-sm" key={`status-${reportType}`}>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-gray-900">
                     {reportType === 'sales' ? '🎯 Payment Status (Sales View)' : '💳 Payment Status'}
@@ -184,7 +184,7 @@ export default function ReportsPage() {
                     Current status
                   </span>
                 </div>
-                <RevenueByStatusChart />
+                <RevenueByStatusChart key={`chart-status-${reportType}`} />
               </div>
             </div>
 
