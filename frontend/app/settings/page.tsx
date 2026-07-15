@@ -25,35 +25,44 @@ export default function SettingsPage() {
   useEffect(() => {
     const checkHealth = async () => {
       try {
+        console.log('=== Settings Page Loading ===');
+        console.log('URL:', window.location.href);
+        console.log('Search params:', window.location.search);
+
         const data = await apiClient.healthCheck();
         setHealth(data);
+        console.log('Health check passed');
 
         // Check for OAuth callback query parameters FIRST
         const params = new URLSearchParams(window.location.search);
         const qbParam = params.get('qb');
+        console.log('QB Param:', qbParam);
 
         if (qbParam === 'success') {
-          console.log('QuickBooks authorization successful!');
+          console.log('✅ QuickBooks authorization successful!');
           // Clean up URL immediately
           window.history.replaceState({}, document.title, window.location.pathname);
           // Fetch latest status
+          console.log('Fetching updated QB status...');
           const updatedStatus = await fetchQBStatus();
+          console.log('Updated status:', updatedStatus);
           // Show success message
           alert('QuickBooks authorized successfully! Connection status: ' +
             (updatedStatus?.connected ? 'Connected' : 'Pending'));
         } else if (qbParam === 'error') {
-          console.log('QuickBooks authorization failed');
+          console.log('❌ QuickBooks authorization failed');
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
           alert('Failed to authorize QuickBooks. Please check the server logs for details.');
           // Still fetch status
           await fetchQBStatus();
         } else {
+          console.log('Normal page load - fetching QB status...');
           // Normal page load - just fetch status
           await fetchQBStatus();
         }
       } catch (err) {
-        console.error('Health check failed:', err);
+        console.error('❌ Error during setup:', err);
         // Still try to load QB status
         await fetchQBStatus();
       } finally {
