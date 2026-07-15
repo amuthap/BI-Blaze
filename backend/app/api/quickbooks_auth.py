@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from app.db.database import get_db
-from app.services.quickbooks_oauth import QuickBooksOAuth
+from app.services.quickbooks_oauth_v2 import QuickBooksOAuthV2
 from app.services.quickbooks_sync import QuickBooksSync
 from app.config import get_settings
 import logging
@@ -18,7 +18,7 @@ settings = get_settings()
 async def authorize_quickbooks(db: Session = Depends(get_db)):
     """Get QuickBooks authorization URL."""
     try:
-        oauth = QuickBooksOAuth()
+        oauth = QuickBooksOAuthV2()
         auth_url = oauth.get_authorization_url()
 
         return {
@@ -41,10 +41,10 @@ async def oauth_callback(
     try:
         logger.info(f"Received OAuth callback with code and realmId: {realmId}")
 
-        oauth = QuickBooksOAuth()
+        oauth = QuickBooksOAuthV2()
 
-        # Exchange code for token
-        token_data = await oauth.exchange_code_for_token(code)
+        # Exchange code for token using official SDK
+        token_data = await oauth.exchange_code_for_token(code, realmId)
 
         # Save token to database
         oauth.save_token(db, token_data)
