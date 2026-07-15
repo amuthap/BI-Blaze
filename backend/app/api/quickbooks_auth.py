@@ -33,13 +33,13 @@ async def authorize_quickbooks(db: Session = Depends(get_db)):
 @router.get("/callback")
 async def oauth_callback(
     code: str = Query(...),
-    realm_id: str = Query(...),
+    realmId: str = Query(...),
     state: str = Query(None),
     db: Session = Depends(get_db)
 ):
     """Handle OAuth callback from QuickBooks."""
     try:
-        logger.info(f"Received OAuth callback with code and realm_id: {realm_id}")
+        logger.info(f"Received OAuth callback with code and realmId: {realmId}")
 
         oauth = QuickBooksOAuth()
 
@@ -50,8 +50,8 @@ async def oauth_callback(
         oauth.save_token(db, token_data)
 
         # Update realm ID in settings/database
-        settings.qb_realm_id = realm_id
-        logger.info(f"Authorized QuickBooks. Realm ID: {realm_id}")
+        settings.qb_realm_id = realmId
+        logger.info(f"Authorized QuickBooks. Realm ID: {realmId}")
 
         # Start sync
         try:
@@ -64,7 +64,7 @@ async def oauth_callback(
 
         return {
             "message": "QuickBooks authorized successfully!",
-            "realm_id": realm_id,
+            "realm_id": realmId,
             "sync_started": True
         }
 
