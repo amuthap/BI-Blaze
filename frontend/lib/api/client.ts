@@ -135,7 +135,7 @@ class APIClient {
   // Health Check
   async healthCheck(): Promise<{ status: string; app: string; env: string; version: string }> {
     const response = await this.axiosInstance.get(
-      '/health'
+      '/api/health'
     );
     return response.data;
   }
