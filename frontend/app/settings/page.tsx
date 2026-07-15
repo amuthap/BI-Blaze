@@ -9,41 +9,53 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [qbLoading, setQbLoading] = useState(false);
 
+  const fetchQBStatus = async () => {
+    try {
+      const qbData = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/status`)
+        .then(r => r.json())
+        .catch(() => ({ connected: false }));
+      setQbStatus(qbData);
+      return qbData;
+    } catch (err) {
+      console.error('Failed to fetch QB status:', err);
+      return { connected: false };
+    }
+  };
+
   useEffect(() => {
     const checkHealth = async () => {
       try {
         const data = await apiClient.healthCheck();
         setHealth(data);
 
-        // Check QB status
-        const qbData = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/status`)
-          .then(r => r.json())
-          .catch(() => ({ connected: false }));
-        setQbStatus(qbData);
-
-        // Check for OAuth callback query parameters
+        // Check for OAuth callback query parameters FIRST
         const params = new URLSearchParams(window.location.search);
         const qbParam = params.get('qb');
+
         if (qbParam === 'success') {
-          console.log('QuickBooks authorization successful, refreshing status...');
-          alert('QuickBooks authorized successfully! Data will sync now.');
-          // Refresh QB status after authorization
-          setTimeout(async () => {
-            const updatedQbData = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/status`)
-              .then(r => r.json())
-              .catch(() => ({ connected: false }));
-            setQbStatus(updatedQbData);
-          }, 1000);
-          // Clean up URL
+          console.log('QuickBooks authorization successful!');
+          // Clean up URL immediately
           window.history.replaceState({}, document.title, window.location.pathname);
+          // Fetch latest status
+          const updatedStatus = await fetchQBStatus();
+          // Show success message
+          alert('QuickBooks authorized successfully! Connection status: ' +
+            (updatedStatus?.connected ? 'Connected' : 'Pending'));
         } else if (qbParam === 'error') {
           console.log('QuickBooks authorization failed');
-          alert('Failed to authorize QuickBooks. Please check the server logs for details.');
           // Clean up URL
           window.history.replaceState({}, document.title, window.location.pathname);
+          alert('Failed to authorize QuickBooks. Please check the server logs for details.');
+          // Still fetch status
+          await fetchQBStatus();
+        } else {
+          // Normal page load - just fetch status
+          await fetchQBStatus();
         }
       } catch (err) {
         console.error('Health check failed:', err);
+        // Still try to load QB status
+        await fetchQBStatus();
       } finally {
         setLoading(false);
       }
