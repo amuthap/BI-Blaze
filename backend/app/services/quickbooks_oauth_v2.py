@@ -1,6 +1,7 @@
 """QuickBooks OAuth 2.0 integration using official Intuit SDK."""
 
 from intuitlib.client import AuthClient
+from intuitlib.enums import Scopes
 from datetime import datetime, timedelta
 from app.config import get_settings
 from sqlalchemy.orm import Session
@@ -30,7 +31,7 @@ class QuickBooksOAuthV2:
     def get_authorization_url(self) -> str:
         """Generate authorization URL for user to grant access."""
         auth_url = self.auth_client.get_authorization_url(
-            scopes=["com.intuit.quickbooks.accounting"]
+            scopes=[Scopes.ACCOUNTING]
         )
         logger.info(f"Generated authorization URL")
         return auth_url
