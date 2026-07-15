@@ -35,40 +35,72 @@ async def authorize_quickbooks(db: Session = Depends(get_db)):
 async def oauth_callback(
     code: str = Query(...),
     realmId: str = Query(...),
-    state: str = Query(None),
-    db: Session = Depends(get_db)
+    state: str = Query(None)
 ):
     """Handle OAuth callback from QuickBooks."""
+    db = None
     try:
-        logger.info(f"Received OAuth callback with code and realmId: {realmId}")
+        logger.info(f"Received OAuth callback with code: {code[:20]}... and realmId: {realmId}")
+
+        # Try to get database connection, but don't fail if unavailable
+        try:
+            from app.db.database import SessionLocal
+            db = SessionLocal()
+        except Exception as e:
+            logger.warning(f"Could not establish database connection: {e}")
 
         oauth = QuickBooksOAuthV2()
+        logger.info(f"Created OAuth client")
 
         # Exchange code for token using official SDK
-        token_data = await oauth.exchange_code_for_token(code, realmId)
+        logger.info(f"Exchanging code for token...")
+        token_data = oauth.exchange_code_for_token(code, realmId)
+        logger.info(f"Token exchange successful: {list(token_data.keys())}")
 
-        # Save token to database
-        oauth.save_token(db, token_data)
+        # Save token to database if available
+        if db:
+            logger.info(f"Saving token to database...")
+            oauth.save_token(db, token_data)
+            logger.info(f"Token saved successfully")
+        else:
+            logger.warning("Database not available - token not saved")
 
         # Update realm ID in settings/database
         settings.qb_realm_id = realmId
         logger.info(f"Authorized QuickBooks. Realm ID: {realmId}")
 
-        # Start sync
-        try:
-            sync = QuickBooksSync(db)
-            await sync.sync_all()
-            logger.info("Initial QuickBooks sync completed")
-        except Exception as e:
-            logger.error(f"Error during initial sync: {str(e)}")
-            # Don't fail if sync fails - token is saved
+        # Optional: Start sync (non-blocking, don't fail if it doesn't work)
+        sync_status = "skipped"
+        if db:
+            try:
+                logger.info(f"Starting QuickBooks sync...")
+                sync = QuickBooksSync(db)
+                await sync.sync_all()
+                logger.info("Initial QuickBooks sync completed")
+                sync_status = "completed"
+            except Exception as e:
+                logger.warning(f"Initial sync failed (non-critical): {str(e)}")
+                sync_status = "failed"
+        else:
+            logger.info("Skipping sync - database not available")
 
+        logger.info(f"Callback successful (sync={sync_status}), redirecting to settings...")
         # Redirect to settings page after successful authorization
-        return RedirectResponse(url="https://blazebi.hyperbig.com/settings?qb=success", status_code=302)
+        return RedirectResponse(url="/settings?qb=success", status_code=302)
 
     except Exception as e:
-        logger.error(f"OAuth callback error: {str(e)}")
-        return RedirectResponse(url="https://blazebi.hyperbig.com/settings?qb=error", status_code=302)
+        logger.error(f"OAuth callback error: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        # Redirect to settings with error
+        return RedirectResponse(url="/settings?qb=error", status_code=302)
+
+    finally:
+        if db:
+            try:
+                db.close()
+            except:
+                pass
 
 
 @router.post("/disconnect")

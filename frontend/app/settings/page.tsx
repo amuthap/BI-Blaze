@@ -20,6 +20,28 @@ export default function SettingsPage() {
           .then(r => r.json())
           .catch(() => ({ connected: false }));
         setQbStatus(qbData);
+
+        // Check for OAuth callback query parameters
+        const params = new URLSearchParams(window.location.search);
+        const qbParam = params.get('qb');
+        if (qbParam === 'success') {
+          console.log('QuickBooks authorization successful, refreshing status...');
+          alert('QuickBooks authorized successfully! Data will sync now.');
+          // Refresh QB status after authorization
+          setTimeout(async () => {
+            const updatedQbData = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/status`)
+              .then(r => r.json())
+              .catch(() => ({ connected: false }));
+            setQbStatus(updatedQbData);
+          }, 1000);
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } else if (qbParam === 'error') {
+          console.log('QuickBooks authorization failed');
+          alert('Failed to authorize QuickBooks. Please check the server logs for details.');
+          // Clean up URL
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
       } catch (err) {
         console.error('Health check failed:', err);
       } finally {
@@ -34,11 +56,20 @@ export default function SettingsPage() {
     setQbLoading(true);
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/authorize`)
-        .then(r => r.json());
+        .then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.json();
+        });
+
+      if (!response.authorization_url) {
+        throw new Error('No authorization URL received from server');
+      }
+
+      console.log('Redirecting to QuickBooks authorization...');
       window.location.href = response.authorization_url;
     } catch (err) {
       console.error('Failed to get authorization URL:', err);
-      alert('Failed to authorize QuickBooks. Please try again.');
+      alert(`Failed to authorize QuickBooks: ${err instanceof Error ? err.message : String(err)}`);
       setQbLoading(false);
     }
   };

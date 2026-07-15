@@ -2,6 +2,7 @@
 
 from intuitlib.client import AuthClient
 from intuitlib.enums import Scopes
+from intuitlib.utils import AuthClientError
 from datetime import datetime, timedelta
 from app.config import get_settings
 from sqlalchemy.orm import Session
@@ -36,39 +37,61 @@ class QuickBooksOAuthV2:
         logger.info(f"Generated authorization URL")
         return auth_url
 
-    async def exchange_code_for_token(self, code: str, realm_id: str) -> dict:
+    def exchange_code_for_token(self, code: str, realm_id: str) -> dict:
         """Exchange authorization code for access token."""
         try:
+            logger.info(f"Starting token exchange: code={code[:10]}..., realm_id={realm_id}")
+            logger.info(f"OAuth endpoint: {self.auth_client.token_endpoint}")
+
             # Use the official SDK to exchange code for token
-            auth_response = self.auth_client.get_bearer_token(code, realm_id=realm_id)
+            # This method is synchronous and populates auth_client attributes
+            self.auth_client.get_bearer_token(code, realm_id=realm_id)
 
             logger.info(f"Successfully exchanged code for token. Realm ID: {realm_id}")
+            logger.info(f"Access token set: {bool(self.auth_client.access_token)}")
+            logger.info(f"Refresh token set: {bool(self.auth_client.refresh_token)}")
+            logger.info(f"Expires in: {self.auth_client.expires_in}")
 
-            return {
-                "access_token": auth_response["access_token"],
-                "refresh_token": auth_response.get("refresh_token"),
-                "expires_in": auth_response.get("expires_in", 3600),
-                "realm_id": realm_id
+            # Get all token-related attributes set by the API response
+            token_data = {
+                "access_token": self.auth_client.access_token,
+                "refresh_token": getattr(self.auth_client, 'refresh_token', None),
+                "expires_in": getattr(self.auth_client, 'expires_in', 3600),
+                "realm_id": realm_id,
+                "x_refresh_token_expires_in": getattr(self.auth_client, 'x_refresh_token_expires_in', None)
             }
+
+            logger.info(f"Token data prepared: {list(token_data.keys())}")
+            return token_data
+
+        except AuthClientError as e:
+            logger.error(f"OAuth API error: status={e.resp.status_code if hasattr(e, 'resp') else 'unknown'}")
+            logger.error(f"Response content: {e.resp.text if hasattr(e, 'resp') else str(e)}", exc_info=True)
+            raise
         except Exception as e:
-            logger.error(f"Failed to exchange code: {str(e)}")
+            logger.error(f"Failed to exchange code: {str(e)}", exc_info=True)
             raise
 
-    async def refresh_token(self, refresh_token: str, realm_id: str) -> dict:
+    def refresh_token(self, refresh_token: str, realm_id: str) -> dict:
         """Refresh access token using refresh token."""
         try:
-            auth_response = self.auth_client.refresh(refresh_token)
+            logger.info("Refreshing access token...")
+            # refresh() is a synchronous method that populates auth_client attributes
+            self.auth_client.refresh(refresh_token)
 
-            logger.info(f"Token refreshed successfully")
+            logger.info("Token refreshed successfully")
 
             return {
-                "access_token": auth_response["access_token"],
-                "refresh_token": auth_response.get("refresh_token", refresh_token),
-                "expires_in": auth_response.get("expires_in", 3600),
+                "access_token": self.auth_client.access_token,
+                "refresh_token": getattr(self.auth_client, 'refresh_token', refresh_token),
+                "expires_in": getattr(self.auth_client, 'expires_in', 3600),
                 "realm_id": realm_id
             }
+        except AuthClientError as e:
+            logger.error(f"OAuth API error during refresh: {e.resp.text if hasattr(e, 'resp') else str(e)}")
+            raise
         except Exception as e:
-            logger.error(f"Failed to refresh token: {str(e)}")
+            logger.error(f"Failed to refresh token: {str(e)}", exc_info=True)
             raise
 
     def save_token(self, db: Session, token_data: dict) -> None:
