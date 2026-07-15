@@ -1,6 +1,7 @@
 """QuickBooks OAuth authentication endpoints."""
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from app.db.database import get_db
 from app.services.quickbooks_oauth_v2 import QuickBooksOAuthV2
@@ -62,15 +63,12 @@ async def oauth_callback(
             logger.error(f"Error during initial sync: {str(e)}")
             # Don't fail if sync fails - token is saved
 
-        return {
-            "message": "QuickBooks authorized successfully!",
-            "realm_id": realmId,
-            "sync_started": True
-        }
+        # Redirect to settings page after successful authorization
+        return RedirectResponse(url="https://blazebi.hyperbig.com/settings?qb=success", status_code=302)
 
     except Exception as e:
         logger.error(f"OAuth callback error: {str(e)}")
-        raise HTTPException(status_code=500, detail=str(e))
+        return RedirectResponse(url="https://blazebi.hyperbig.com/settings?qb=error", status_code=302)
 
 
 @router.post("/disconnect")
