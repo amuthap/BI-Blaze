@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import {
   LineChart,
   Line,
@@ -18,6 +19,14 @@ interface RevenueTrendChartProps {
 }
 
 export const RevenueTrendChart = ({ data, height = 300 }: RevenueTrendChartProps) => {
+  useEffect(() => {
+    console.log('RevenueTrendChart data updated:', {
+      dataPoints: data?.data?.length,
+      periodDays: data?.period_days,
+      dateRange: data?.data ? [data.data[0]?.date, data.data[data.data.length - 1]?.date] : null,
+    });
+  }, [data]);
+
   if (!data?.data || data.data.length === 0) {
     return (
       <div className="flex items-center justify-center h-80 text-gray-400">

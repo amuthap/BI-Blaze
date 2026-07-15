@@ -30,10 +30,11 @@ async def chat_query(
 ):
     """Process natural language business questions."""
     try:
-        # Process with Claude
+        # Process with Claude (pass db for fallback queries)
         result = llm_service.chat(
             question=request.message,
             conversation_id=request.conversation_id,
+            db=db,  # Pass database for data-driven insights
         )
 
         # Log to query history
@@ -139,6 +140,7 @@ async def generate_report(
 
         title = request.get("title", "Business Report")
         days = request.get("days", 30)
+        report_type = request.get("type", "summary")
 
         dashboard = DashboardService(db)
         metrics = dashboard.get_key_metrics(period_days=days)
@@ -151,7 +153,8 @@ async def generate_report(
             "top_products": products,
         }
 
-        report_content = llm_service.format_report(title, data_context)
+        # Generate report based on type
+        report_content = llm_service.format_report(title, data_context, report_type=report_type)
 
         return {
             "title": title,

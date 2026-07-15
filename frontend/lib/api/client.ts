@@ -92,10 +92,10 @@ class APIClient {
     return response.data;
   }
 
-  async generateReport(title: string, days: number = 30): Promise<{ title: string; content: string; generated_at: string }> {
+  async generateReport(title: string, days: number = 30, type: string = 'summary'): Promise<{ title: string; content: string; generated_at: string }> {
     const response = await this.axiosInstance.post<{ title: string; content: string; generated_at: string }>(
       '/api/query/report',
-      { title, days }
+      { title, days, type }
     );
     return response.data;
   }
