@@ -87,7 +87,9 @@ async def oauth_callback(
         logger.info(f"Callback successful (sync={sync_status}), redirecting to settings...")
         # Redirect to settings page after successful authorization
         frontend_url = "https://blazebi.hyperbig.com" if settings.app_env == "production" else "http://localhost:3000"
-        return RedirectResponse(url=f"{frontend_url}/settings?qb=success", status_code=302)
+        redirect_url = f"{frontend_url}/settings?qb=success"
+        logger.info(f"Redirect URL: {redirect_url}, Environment: {settings.app_env}")
+        return RedirectResponse(url=redirect_url, status_code=302)
 
     except Exception as e:
         logger.error(f"OAuth callback error: {str(e)}", exc_info=True)
@@ -95,7 +97,9 @@ async def oauth_callback(
         logger.error(f"Traceback: {traceback.format_exc()}")
         # Redirect to settings with error
         frontend_url = "https://blazebi.hyperbig.com" if settings.app_env == "production" else "http://localhost:3000"
-        return RedirectResponse(url=f"{frontend_url}/settings?qb=error", status_code=302)
+        redirect_url = f"{frontend_url}/settings?qb=error"
+        logger.error(f"Error redirect URL: {redirect_url}, Environment: {settings.app_env}")
+        return RedirectResponse(url=redirect_url, status_code=302)
 
     finally:
         if db:
