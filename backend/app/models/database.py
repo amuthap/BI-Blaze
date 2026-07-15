@@ -232,3 +232,137 @@ class OAuthToken(Base):
     expires_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+# ============= QuickBooks Tables (Virtunest Account) =============
+
+class QBCustomer(Base):
+    __tablename__ = "qb_customers"
+
+    id = Column(BigInteger, primary_key=True)
+    qb_id = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255))
+    phone = Column(String(20))
+    billing_address = Column(Text)
+    shipping_address = Column(Text)
+    status = Column(String(50), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    qb_created_at = Column(DateTime)
+    qb_updated_at = Column(DateTime, index=True)
+
+    invoices = relationship("QBInvoice", back_populates="customer")
+    payments = relationship("QBPayment", back_populates="customer")
+
+    __table_args__ = (
+        Index("idx_qb_customer_qb_id", "qb_id"),
+        Index("idx_qb_customer_updated_at", "qb_updated_at"),
+    )
+
+
+class QBProduct(Base):
+    __tablename__ = "qb_products"
+
+    id = Column(BigInteger, primary_key=True)
+    qb_id = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    sku = Column(String(100))
+    unit_price = Column(Numeric(12, 2))
+    tax_included = Column(Boolean, default=False)
+    status = Column(String(50), default="active")
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    qb_created_at = Column(DateTime)
+    qb_updated_at = Column(DateTime, index=True)
+
+    line_items = relationship("QBInvoiceLineItem", back_populates="product")
+
+    __table_args__ = (
+        Index("idx_qb_product_qb_id", "qb_id"),
+        Index("idx_qb_product_updated_at", "qb_updated_at"),
+    )
+
+
+class QBInvoice(Base):
+    __tablename__ = "qb_invoices"
+
+    id = Column(BigInteger, primary_key=True)
+    qb_id = Column(String(50), unique=True, nullable=False, index=True)
+    invoice_number = Column(String(100), nullable=False)
+    customer_id = Column(BigInteger, ForeignKey("qb_customers.id"), nullable=False, index=True)
+    invoice_date = Column(Date, nullable=False, index=True)
+    due_date = Column(Date)
+    total = Column(Numeric(12, 2), nullable=False)
+    tax = Column(Numeric(12, 2), default=0)
+    discount = Column(Numeric(12, 2), default=0)
+    status = Column(String(50), default="draft")
+    payment_status = Column(String(50), default="unpaid")
+    currency_code = Column(String(10), default="USD")
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    qb_created_at = Column(DateTime)
+    qb_updated_at = Column(DateTime, index=True)
+
+    customer = relationship("QBCustomer", back_populates="invoices")
+    line_items = relationship("QBInvoiceLineItem", back_populates="invoice", cascade="all, delete-orphan")
+    payments = relationship("QBPayment", back_populates="invoice")
+
+    __table_args__ = (
+        Index("idx_qb_invoice_qb_id", "qb_id"),
+        Index("idx_qb_invoice_customer_id", "customer_id"),
+        Index("idx_qb_invoice_date", "invoice_date"),
+        Index("idx_qb_invoice_updated_at", "qb_updated_at"),
+    )
+
+
+class QBInvoiceLineItem(Base):
+    __tablename__ = "qb_invoice_line_items"
+
+    id = Column(BigInteger, primary_key=True)
+    qb_id = Column(String(50), unique=True, nullable=False, index=True)
+    invoice_id = Column(BigInteger, ForeignKey("qb_invoices.id"), nullable=False, index=True)
+    product_id = Column(BigInteger, ForeignKey("qb_products.id"), index=True)
+    description = Column(Text)
+    quantity = Column(Numeric(12, 4), nullable=False)
+    unit_price = Column(Numeric(12, 2), nullable=False)
+    item_total = Column(Numeric(12, 2), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    invoice = relationship("QBInvoice", back_populates="line_items")
+    product = relationship("QBProduct", back_populates="line_items")
+
+    __table_args__ = (
+        Index("idx_qb_line_item_invoice_id", "invoice_id"),
+        Index("idx_qb_line_item_product_id", "product_id"),
+    )
+
+
+class QBPayment(Base):
+    __tablename__ = "qb_payments"
+
+    id = Column(BigInteger, primary_key=True)
+    qb_id = Column(String(50), unique=True, nullable=False, index=True)
+    invoice_id = Column(BigInteger, ForeignKey("qb_invoices.id"), nullable=False, index=True)
+    customer_id = Column(BigInteger, ForeignKey("qb_customers.id"), nullable=False)
+    payment_date = Column(Date, nullable=False, index=True)
+    amount = Column(Numeric(12, 2), nullable=False)
+    payment_method = Column(String(50))
+    reference_number = Column(String(100))
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    qb_created_at = Column(DateTime)
+    qb_updated_at = Column(DateTime, index=True)
+
+    invoice = relationship("QBInvoice", back_populates="payments")
+    customer = relationship("QBCustomer", back_populates="payments")
+
+    __table_args__ = (
+        Index("idx_qb_payment_qb_id", "qb_id"),
+        Index("idx_qb_payment_invoice_id", "invoice_id"),
+        Index("idx_qb_payment_date", "payment_date"),
+        Index("idx_qb_payment_updated_at", "qb_updated_at"),
+    )

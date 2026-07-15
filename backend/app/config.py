@@ -23,6 +23,13 @@ class Settings(BaseSettings):
     zoho_accounts_url: str = "https://accounts.zoho.in"
     zoho_redirect_uri: str = "http://localhost:8000/api/auth/zoho/callback"
 
+    # QuickBooks Online (Virtunest Account)
+    qb_client_id: str = ""
+    qb_client_secret: str = ""
+    qb_redirect_uri: str = "http://localhost:8000/api/auth/quickbooks/callback"
+    qb_realm_id: str = ""
+    qb_refresh_token: str = ""
+
     # Claude API
     anthropic_api_key: str
 

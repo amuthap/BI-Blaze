@@ -87,12 +87,14 @@ def create_app() -> FastAPI:
     from app.api.query import router as query_router
     from app.api.details import router as details_router
     from app.api.reports import router as reports_router
+    from app.api.quickbooks_auth import router as qb_auth_router
 
     app.include_router(auth_router)
     app.include_router(dashboard_router)
     app.include_router(query_router)
     app.include_router(details_router)
     app.include_router(reports_router)
+    app.include_router(qb_auth_router)
 
     # Mock data endpoint (for development)
     @app.post("/dev/populate-mock-data")
