@@ -57,8 +57,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Health check endpoint
+    # Health check endpoints (both paths for compatibility)
     @app.get("/health")
+    @app.get("/api/health")
     async def health():
         return {
             "status": "ok",
