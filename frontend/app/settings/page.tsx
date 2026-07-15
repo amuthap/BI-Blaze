@@ -5,13 +5,21 @@ import { apiClient } from '@/lib/api/client';
 
 export default function SettingsPage() {
   const [health, setHealth] = useState<any>(null);
+  const [qbStatus, setQbStatus] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [qbLoading, setQbLoading] = useState(false);
 
   useEffect(() => {
     const checkHealth = async () => {
       try {
         const data = await apiClient.healthCheck();
         setHealth(data);
+
+        // Check QB status
+        const qbData = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/status`)
+          .then(r => r.json())
+          .catch(() => ({ connected: false }));
+        setQbStatus(qbData);
       } catch (err) {
         console.error('Health check failed:', err);
       } finally {
@@ -21,6 +29,34 @@ export default function SettingsPage() {
 
     checkHealth();
   }, []);
+
+  const handleAuthorizeQB = async () => {
+    setQbLoading(true);
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/authorize`)
+        .then(r => r.json());
+      window.location.href = response.authorization_url;
+    } catch (err) {
+      console.error('Failed to get authorization URL:', err);
+      alert('Failed to authorize QuickBooks. Please try again.');
+      setQbLoading(false);
+    }
+  };
+
+  const handleDisconnectQB = async () => {
+    if (!confirm('Are you sure you want to disconnect QuickBooks?')) return;
+
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/quickbooks/disconnect`, {
+        method: 'POST'
+      });
+      setQbStatus({ connected: false });
+      alert('QuickBooks disconnected successfully');
+    } catch (err) {
+      console.error('Failed to disconnect QuickBooks:', err);
+      alert('Failed to disconnect QuickBooks. Please try again.');
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -61,7 +97,7 @@ export default function SettingsPage() {
       </div>
 
       {/* API Configuration */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">API Configuration</h2>
         <div className="space-y-2">
           <div className="flex justify-between">
@@ -73,6 +109,71 @@ export default function SettingsPage() {
             <span className="font-medium">Development</span>
           </div>
         </div>
+      </div>
+
+      {/* Data Sources */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">📊 Connected Data Sources</h2>
+        <div className="space-y-4">
+          {/* Zoho Books */}
+          <div className="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div>
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span className="inline-block w-2 h-2 bg-green-500 rounded-full"></span>
+                Zoho Books
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">Primary accounting system - Active</p>
+            </div>
+            <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">Connected</span>
+          </div>
+
+          {/* QuickBooks */}
+          <div className="flex items-start justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+            <div>
+              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+                <span className={`inline-block w-2 h-2 rounded-full ${qbStatus?.connected ? 'bg-green-500' : 'bg-gray-300'}`}></span>
+                QuickBooks Online (Virtunest)
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                {qbStatus?.connected
+                  ? `Connected - Last synced: ${qbStatus?.last_sync || 'Recently'}`
+                  : 'Not yet connected - Click to authorize'}
+              </p>
+            </div>
+            <div>
+              {qbStatus?.connected ? (
+                <button
+                  onClick={handleDisconnectQB}
+                  className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded hover:bg-red-200 transition-colors"
+                >
+                  Disconnect
+                </button>
+              ) : (
+                <button
+                  onClick={handleAuthorizeQB}
+                  disabled={qbLoading}
+                  className="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
+                >
+                  {qbLoading ? 'Authorizing...' : 'Connect'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Info Box */}
+      <div className="bg-blue-50 rounded-lg border border-blue-200 p-6">
+        <h3 className="font-semibold text-blue-900 mb-2">🔄 Unified Reporting</h3>
+        <p className="text-sm text-blue-800 mb-3">
+          Your BI system automatically combines data from both Zoho Books and QuickBooks to provide comprehensive insights.
+        </p>
+        <ul className="text-sm text-blue-800 space-y-1">
+          <li>✓ Reports aggregate data from both sources</li>
+          <li>✓ Overdue invoices, payments, and revenue tracked from both systems</li>
+          <li>✓ Unified customer and product analysis</li>
+          <li>✓ Automatic daily syncing from both platforms</li>
+        </ul>
       </div>
     </div>
   );
