@@ -17,7 +17,7 @@ class QuickBooksOAuth:
     """Handle QuickBooks OAuth 2.0 flow."""
 
     OAUTH_URL = "https://appcenter.intuit.com/connect/oauth2"
-    TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/tokens"
+    TOKEN_URL = "https://oauth.platform.intuit.com/tokens/oauth2"
     SCOPES = [
         "com.intuit.quickbooks.accounting"
     ]
