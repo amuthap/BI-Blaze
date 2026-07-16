@@ -230,6 +230,7 @@ class OAuthToken(Base):
     access_token = Column(Text, nullable=False)
     refresh_token = Column(Text, nullable=False)
     expires_at = Column(DateTime)
+    realm_id = Column(String(50))  # For QuickBooks realm ID
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 

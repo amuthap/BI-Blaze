@@ -106,18 +106,15 @@ class QuickBooksOAuthV2:
             token.access_token = token_data["access_token"]
             token.refresh_token = token_data.get("refresh_token", token.refresh_token)
             token.expires_at = expires_at
+            token.realm_id = realm_id
             token.updated_at = datetime.utcnow()
-            # Store realm_id in metadata
-            if not token.metadata:
-                token.metadata = {}
-            token.metadata["realm_id"] = realm_id
         else:
             token = OAuthToken(
                 provider="quickbooks",
                 access_token=token_data["access_token"],
                 refresh_token=token_data.get("refresh_token", ""),
                 expires_at=expires_at,
-                metadata={"realm_id": realm_id}
+                realm_id=realm_id
             )
             db.add(token)
 
