@@ -12,7 +12,7 @@ from app.models.database import (
     QBCustomer, QBProduct, QBInvoice, QBInvoiceLineItem,
     QBPayment, OAuthToken, SyncHistory, SyncStatusEnum
 )
-from app.services.quickbooks_oauth import QuickBooksOAuth
+from app.services.quickbooks_oauth_v2 import QuickBooksOAuthV2
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -25,7 +25,7 @@ class QuickBooksSync:
 
     def __init__(self, db: Session):
         self.db = db
-        self.oauth = QuickBooksOAuth()
+        self.oauth = QuickBooksOAuthV2()
         # Get realm_id from database token
         token = db.query(OAuthToken).filter(OAuthToken.provider == "quickbooks").first()
         if token and token.realm_id:
