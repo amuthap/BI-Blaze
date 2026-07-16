@@ -20,7 +20,8 @@ class QuickBooksOAuthV2:
         self.client_id = settings.qb_client_id
         self.client_secret = settings.qb_client_secret
         self.redirect_uri = settings.qb_redirect_uri
-        self.environment = "sandbox"  # Use sandbox for development, switch to "production" for prod
+        # Use production for live server, sandbox for development
+        self.environment = "production" if settings.app_env == "production" else "sandbox"
 
         self.auth_client = AuthClient(
             client_id=self.client_id,
