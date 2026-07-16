@@ -26,8 +26,14 @@ class QuickBooksSync:
     def __init__(self, db: Session):
         self.db = db
         self.oauth = QuickBooksOAuth()
-        self.realm_id = settings.qb_realm_id
+        # Get realm_id from database metadata
+        token = db.query(OAuthToken).filter(OAuthToken.provider == "quickbooks").first()
+        if token and token.metadata and "realm_id" in token.metadata:
+            self.realm_id = token.metadata["realm_id"]
+        else:
+            self.realm_id = settings.qb_realm_id
         self.access_token = None
+        logger.info(f"QuickBooksSync initialized with realm_id: {self.realm_id}")
 
     async def sync_all(self):
         """Sync all data from QuickBooks."""

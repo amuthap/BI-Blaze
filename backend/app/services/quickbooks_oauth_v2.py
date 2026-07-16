@@ -100,23 +100,29 @@ class QuickBooksOAuthV2:
 
         expires_in = token_data.get("expires_in", 3600)
         expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+        realm_id = token_data.get("realm_id", "")
 
         if token:
             token.access_token = token_data["access_token"]
             token.refresh_token = token_data.get("refresh_token", token.refresh_token)
             token.expires_at = expires_at
             token.updated_at = datetime.utcnow()
+            # Store realm_id in metadata
+            if not token.metadata:
+                token.metadata = {}
+            token.metadata["realm_id"] = realm_id
         else:
             token = OAuthToken(
                 provider="quickbooks",
                 access_token=token_data["access_token"],
                 refresh_token=token_data.get("refresh_token", ""),
-                expires_at=expires_at
+                expires_at=expires_at,
+                metadata={"realm_id": realm_id}
             )
             db.add(token)
 
         db.commit()
-        logger.info(f"Saved QuickBooks token. Expires at: {expires_at}")
+        logger.info(f"Saved QuickBooks token (realm_id={realm_id}). Expires at: {expires_at}")
 
     def get_valid_token(self, db: Session) -> str:
         """Get valid access token, refreshing if necessary."""
