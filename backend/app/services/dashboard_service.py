@@ -39,14 +39,11 @@ class DashboardService:
 
         # QB metrics
         qb_result = self.db.query(
-            func.sum(QBInvoice.total_amount).label("total_revenue"),
+            func.sum(QBInvoice.total).label("total_revenue"),
             func.count(QBInvoice.id).label("invoice_count"),
-            func.avg(QBInvoice.total_amount).label("avg_transaction"),
+            func.avg(QBInvoice.total).label("avg_transaction"),
         ).filter(
-            and_(
-                QBInvoice.metadata_create_time >= start_date,
-                QBInvoice.doc_number.isnot(None),
-            )
+            QBInvoice.invoice_date >= start_date
         ).first()
 
         qb_revenue = float(qb_result[0] or 0)
@@ -80,17 +77,14 @@ class DashboardService:
             Invoice.invoice_date
         ).all()
 
-        # QB revenue trend (using create date cast to date)
+        # QB revenue trend
         qb_results = self.db.query(
-            func.date(QBInvoice.metadata_create_time).label("date"),
-            func.sum(QBInvoice.total_amount).label("daily_revenue"),
+            QBInvoice.invoice_date,
+            func.sum(QBInvoice.total).label("daily_revenue"),
         ).filter(
-            and_(
-                QBInvoice.metadata_create_time >= start_date,
-                QBInvoice.doc_number.isnot(None),
-            )
+            QBInvoice.invoice_date >= start_date
         ).group_by(
-            func.date(QBInvoice.metadata_create_time)
+            QBInvoice.invoice_date
         ).all()
 
         # Combine results by date
@@ -137,16 +131,16 @@ class DashboardService:
         # QB products
         qb_results = self.db.query(
             QBProduct.name,
-            func.sum(QBInvoiceLineItem.qty).label("quantity_sold"),
-            func.sum(QBInvoiceLineItem.amount).label("revenue"),
+            func.sum(QBInvoiceLineItem.quantity).label("quantity_sold"),
+            func.sum(QBInvoiceLineItem.item_total).label("revenue"),
         ).join(
             QBInvoiceLineItem,
-            QBInvoiceLineItem.item_id == QBProduct.id
+            QBInvoiceLineItem.product_id == QBProduct.id
         ).join(
             QBInvoice,
             QBInvoice.id == QBInvoiceLineItem.invoice_id
         ).filter(
-            QBInvoice.metadata_create_time >= start_date
+            QBInvoice.invoice_date >= start_date
         ).group_by(
             QBProduct.id,
             QBProduct.name
@@ -203,12 +197,11 @@ class DashboardService:
 
             # QB first half
             qb_first = self.db.query(
-                func.sum(QBInvoice.total_amount)
+                func.sum(QBInvoice.total)
             ).filter(
                 and_(
-                    QBInvoice.metadata_create_time >= period_start,
-                    QBInvoice.metadata_create_time < period_mid,
-                    QBInvoice.doc_number.isnot(None),
+                    QBInvoice.invoice_date >= period_start,
+                    QBInvoice.invoice_date < period_mid,
                 )
             ).scalar() or Decimal(0)
 
@@ -226,12 +219,11 @@ class DashboardService:
 
             # QB second half
             qb_second = self.db.query(
-                func.sum(QBInvoice.total_amount)
+                func.sum(QBInvoice.total)
             ).filter(
                 and_(
-                    QBInvoice.metadata_create_time >= period_mid,
-                    QBInvoice.metadata_create_time <= today,
-                    QBInvoice.doc_number.isnot(None),
+                    QBInvoice.invoice_date >= period_mid,
+                    QBInvoice.invoice_date <= today,
                 )
             ).scalar() or Decimal(0)
 
@@ -258,9 +250,8 @@ class DashboardService:
                 func.count(QBInvoice.id)
             ).filter(
                 and_(
-                    QBInvoice.metadata_create_time >= period_start,
-                    QBInvoice.metadata_create_time < period_mid,
-                    QBInvoice.doc_number.isnot(None),
+                    QBInvoice.invoice_date >= period_start,
+                    QBInvoice.invoice_date < period_mid,
                 )
             ).scalar() or 0
 
@@ -281,9 +272,8 @@ class DashboardService:
                 func.count(QBInvoice.id)
             ).filter(
                 and_(
-                    QBInvoice.metadata_create_time >= period_mid,
-                    QBInvoice.metadata_create_time <= today,
-                    QBInvoice.doc_number.isnot(None),
+                    QBInvoice.invoice_date >= period_mid,
+                    QBInvoice.invoice_date <= today,
                 )
             ).scalar() or 0
 
@@ -310,9 +300,8 @@ class DashboardService:
                 func.count(func.distinct(QBInvoice.customer_id))
             ).filter(
                 and_(
-                    QBInvoice.metadata_create_time >= period_start,
-                    QBInvoice.metadata_create_time < period_mid,
-                    QBInvoice.doc_number.isnot(None),
+                    QBInvoice.invoice_date >= period_start,
+                    QBInvoice.invoice_date < period_mid,
                 )
             ).scalar() or 0
 
@@ -333,9 +322,8 @@ class DashboardService:
                 func.count(func.distinct(QBInvoice.customer_id))
             ).filter(
                 and_(
-                    QBInvoice.metadata_create_time >= period_mid,
-                    QBInvoice.metadata_create_time <= today,
-                    QBInvoice.doc_number.isnot(None),
+                    QBInvoice.invoice_date >= period_mid,
+                    QBInvoice.invoice_date <= today,
                 )
             ).scalar() or 0
 
@@ -368,11 +356,11 @@ class DashboardService:
         ).scalar() or Decimal(0)
 
         qb_revenue = self.db.query(
-            func.sum(QBInvoice.total_amount)
+            func.sum(QBInvoice.total)
         ).filter(
             and_(
-                QBInvoice.doc_number.isnot(None),
-                QBInvoice.metadata_create_time >= start_date,
+                QBInvoice.invoice_date >= start_date,
+                QBInvoice.invoice_date <= today,
             )
         ).scalar() or Decimal(0)
 
@@ -390,12 +378,11 @@ class DashboardService:
         ).scalar() or Decimal(0)
 
         prev_qb_revenue = self.db.query(
-            func.sum(QBInvoice.total_amount)
+            func.sum(QBInvoice.total)
         ).filter(
             and_(
-                QBInvoice.doc_number.isnot(None),
-                QBInvoice.metadata_create_time >= prev_start,
-                QBInvoice.metadata_create_time < start_date,
+                QBInvoice.invoice_date >= prev_start,
+                QBInvoice.invoice_date < start_date,
             )
         ).scalar() or Decimal(0)
 
@@ -420,8 +407,8 @@ class DashboardService:
             func.count(QBInvoice.id)
         ).filter(
             and_(
-                QBInvoice.doc_number.isnot(None),
-                QBInvoice.metadata_create_time >= start_date,
+                QBInvoice.invoice_date >= start_date,
+                QBInvoice.invoice_date <= today,
             )
         ).scalar() or 0
 
@@ -441,8 +428,8 @@ class DashboardService:
             func.count(func.distinct(QBInvoice.customer_id))
         ).filter(
             and_(
-                QBInvoice.doc_number.isnot(None),
-                QBInvoice.metadata_create_time >= start_date,
+                QBInvoice.invoice_date >= start_date,
+                QBInvoice.invoice_date <= today,
             )
         ).scalar() or 0
 
