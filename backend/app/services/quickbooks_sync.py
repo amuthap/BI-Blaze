@@ -110,6 +110,8 @@ class QuickBooksSync:
                     if response.status_code == 403:
                         logger.error(f"QB API 403 Forbidden (intuit_tid: {intuit_tid})")
                         logger.error(f"URL: {url}")
+                        logger.error(f"Response: {response.text}")
+                        logger.error(f"Headers: {dict(response.headers)}")
                         response.raise_for_status()
 
                     if response.status_code == 500:
