@@ -38,13 +38,26 @@ class QuickBooksSync:
     async def sync_all(self):
         """Sync all data from QuickBooks."""
         try:
-            # Get valid access token
-            token_data = self.oauth.get_token_data(self.db)
-            if not token_data:
+            # Get token and refresh if expired
+            token = self.db.query(OAuthToken).filter(OAuthToken.provider == "quickbooks").first()
+            if not token:
                 logger.error("No QuickBooks token found")
                 return
 
-            self.access_token = token_data["access_token"]
+            # Check if token is expired and refresh if needed
+            from datetime import datetime, timedelta
+            if token.expires_at and datetime.utcnow() > token.expires_at - timedelta(minutes=5):
+                logger.info("Token expired or expiring soon, refreshing...")
+                try:
+                    new_token_data = self.oauth.refresh_token(token.refresh_token, token.realm_id)
+                    self.oauth.save_token(self.db, new_token_data)
+                    token = self.db.query(OAuthToken).filter(OAuthToken.provider == "quickbooks").first()
+                    logger.info("Token refreshed successfully")
+                except Exception as e:
+                    logger.error(f"Token refresh failed: {str(e)}")
+                    raise
+
+            self.access_token = token.access_token
 
             logger.info("Starting QuickBooks sync...")
 
