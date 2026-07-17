@@ -119,9 +119,10 @@ async def disconnect_quickbooks(db: Session = Depends(get_db)):
 
 @router.get("/status")
 async def quickbooks_status(db: Session = Depends(get_db)):
-    """Check QuickBooks connection status."""
+    """Check QuickBooks connection status with sync details."""
     try:
-        from app.models.database import OAuthToken
+        from app.models.database import OAuthToken, SyncHistory
+        from datetime import datetime
 
         token = db.query(OAuthToken).filter(OAuthToken.provider == "quickbooks").first()
 
@@ -131,11 +132,38 @@ async def quickbooks_status(db: Session = Depends(get_db)):
                 "message": "QuickBooks not connected"
             }
 
+        # Check last sync attempt (QB-specific)
+        last_sync = db.query(SyncHistory).filter(
+            SyncHistory.entity_type.in_(["qb_customer", "qb_product", "qb_invoice", "qb_payment"])
+        ).order_by(SyncHistory.completed_at.desc()).first()
+
+        if not last_sync:
+            return {
+                "connected": True,
+                "realm_id": settings.qb_realm_id,
+                "expires_at": token.expires_at,
+                "message": "QB token valid - Ready to sync (no previous sync history)",
+                "last_sync_status": None
+            }
+
+        if last_sync.status.value == "failed":
+            return {
+                "connected": True,
+                "realm_id": settings.qb_realm_id,
+                "expires_at": token.expires_at,
+                "message": f"QB token valid - Last sync FAILED ({last_sync.error_message})",
+                "last_sync_status": "failed",
+                "last_sync_error": last_sync.error_message,
+                "last_sync_at": last_sync.completed_at
+            }
+
         return {
             "connected": True,
             "realm_id": settings.qb_realm_id,
             "expires_at": token.expires_at,
-            "message": "QuickBooks connected"
+            "message": f"QB connected - Last synced: {last_sync.completed_at}",
+            "last_sync_status": last_sync.status.value,
+            "last_sync_at": last_sync.completed_at
         }
 
     except Exception as e:
@@ -146,9 +174,25 @@ async def quickbooks_status(db: Session = Depends(get_db)):
 @router.post("/sync")
 async def sync_quickbooks(db: Session = Depends(get_db)):
     """Manually trigger QuickBooks sync."""
+    from app.models.database import SyncHistory, SyncStatusEnum
+    from datetime import datetime
+
+    sync_record = SyncHistory(
+        entity_type="qb_customer",  # Representative entity
+        sync_type="full",
+        status=SyncStatusEnum.in_progress,
+        started_at=datetime.utcnow()
+    )
+    db.add(sync_record)
+    db.commit()
+
     try:
         sync = QuickBooksSync(db)
         await sync.sync_all()
+
+        sync_record.status = SyncStatusEnum.completed
+        sync_record.completed_at = datetime.utcnow()
+        db.commit()
 
         return {
             "message": "QuickBooks sync completed successfully",
@@ -157,4 +201,8 @@ async def sync_quickbooks(db: Session = Depends(get_db)):
 
     except Exception as e:
         logger.error(f"QuickBooks sync error: {str(e)}")
+        sync_record.status = SyncStatusEnum.failed
+        sync_record.error_message = str(e)
+        sync_record.completed_at = datetime.utcnow()
+        db.commit()
         raise HTTPException(status_code=500, detail=str(e))
