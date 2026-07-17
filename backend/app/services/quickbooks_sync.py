@@ -81,8 +81,16 @@ class QuickBooksSync:
                 url,
                 params={"query": query},
                 headers=headers,
-                timeout=30.0
+                timeout=30.0,
+                follow_redirects=False
             )
+
+            if response.status_code == 403:
+                logger.error(f"QB API returned 403 Forbidden")
+                logger.error(f"URL: {url}")
+                logger.error(f"Headers: {headers}")
+                logger.error(f"Response: {response.text}")
+
             response.raise_for_status()
             return response.json()
 
