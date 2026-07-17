@@ -69,20 +69,9 @@ async def oauth_callback(
         settings.qb_realm_id = realmId
         logger.info(f"Authorized QuickBooks. Realm ID: {realmId}")
 
-        # Optional: Start sync (non-blocking, don't fail if it doesn't work)
+        # Skip initial sync - will be done manually or on schedule
         sync_status = "skipped"
-        if db:
-            try:
-                logger.info(f"Starting QuickBooks sync...")
-                sync = QuickBooksSync(db)
-                await sync.sync_all()
-                logger.info("Initial QuickBooks sync completed")
-                sync_status = "completed"
-            except Exception as e:
-                logger.warning(f"Initial sync failed (non-critical): {str(e)}")
-                sync_status = "failed"
-        else:
-            logger.info("Skipping sync - database not available")
+        logger.info("Skipping initial sync (will run on schedule)")
 
         logger.info(f"Callback successful (sync={sync_status}), redirecting to settings...")
         # Redirect to settings page after successful authorization
