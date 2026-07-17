@@ -83,7 +83,7 @@ class QuickBooksSync:
             raise
 
     async def _make_request(self, endpoint: str, query: str = None) -> dict:
-        """Make authenticated request to QuickBooks API."""
+        """Make authenticated request to QuickBooks API with retry logic."""
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Accept": "application/json",
@@ -92,23 +92,46 @@ class QuickBooksSync:
 
         url = f"{QB_API_BASE}/v2/company/{self.realm_id}/query"
 
-        async with httpx.AsyncClient() as client:
-            response = await client.get(
-                url,
-                params={"query": query},
-                headers=headers,
-                timeout=30.0,
-                follow_redirects=False
-            )
+        # Retry logic with exponential backoff
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        url,
+                        params={"query": query},
+                        headers=headers,
+                        timeout=30.0,
+                        follow_redirects=False
+                    )
 
-            if response.status_code == 403:
-                logger.error(f"QB API returned 403 Forbidden")
-                logger.error(f"URL: {url}")
-                logger.error(f"Headers: {headers}")
-                logger.error(f"Response: {response.text}")
+                    # Capture intuit_tid for debugging
+                    intuit_tid = response.headers.get("intuit_tid", "N/A")
 
-            response.raise_for_status()
-            return response.json()
+                    if response.status_code == 403:
+                        logger.error(f"QB API 403 Forbidden (intuit_tid: {intuit_tid})")
+                        logger.error(f"URL: {url}")
+                        response.raise_for_status()
+
+                    if response.status_code == 500:
+                        logger.warning(f"QB API 500 error (intuit_tid: {intuit_tid}, attempt {attempt+1}/{max_retries})")
+                        if attempt < max_retries - 1:
+                            wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                            import asyncio
+                            await asyncio.sleep(wait_time)
+                            continue
+                        logger.error(f"QB API failed after {max_retries} attempts")
+                        response.raise_for_status()
+
+                    response.raise_for_status()
+                    return response.json()
+
+            except httpx.HTTPError as e:
+                if attempt == max_retries - 1:
+                    raise
+                wait_time = 2 ** attempt
+                import asyncio
+                await asyncio.sleep(wait_time)
 
     async def sync_customers(self):
         """Sync QuickBooks customers."""
