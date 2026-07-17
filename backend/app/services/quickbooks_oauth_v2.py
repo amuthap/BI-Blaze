@@ -33,9 +33,9 @@ class QuickBooksOAuthV2:
     def get_authorization_url(self) -> str:
         """Generate authorization URL for user to grant access."""
         auth_url = self.auth_client.get_authorization_url(
-            scopes=[Scopes.ACCOUNTING]
+            scopes=[Scopes.ACCOUNTING, Scopes.PAYMENT]
         )
-        logger.info(f"Generated authorization URL")
+        logger.info(f"Generated authorization URL with scopes: ACCOUNTING, PAYMENT")
         return auth_url
 
     def exchange_code_for_token(self, code: str, realm_id: str) -> dict:
