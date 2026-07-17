@@ -70,7 +70,8 @@ class QuickBooksSync:
         """Make authenticated request to QuickBooks API."""
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Accept": "application/json"
+            "Accept": "application/json",
+            "Content-Type": "application/json"
         }
 
         url = f"{QB_API_BASE}/v2/company/{self.realm_id}/query"
