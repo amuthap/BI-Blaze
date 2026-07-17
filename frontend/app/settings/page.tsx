@@ -186,10 +186,8 @@ export default function SettingsPage() {
                 <span className={`inline-block w-2 h-2 rounded-full ${qbStatus?.connected ? 'bg-green-500' : 'bg-gray-300'}`}></span>
                 QuickBooks Online (Virtunest)
               </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                {qbStatus?.connected
-                  ? `Connected - Last synced: ${qbStatus?.last_sync || 'Recently'}`
-                  : 'Not yet connected - Click to authorize'}
+              <p className={`text-sm mt-1 ${qbStatus?.last_sync_status === 'failed' ? 'text-red-600 font-semibold' : 'text-gray-600'}`}>
+                {qbStatus?.message || (qbStatus?.connected ? 'Connected' : 'Not yet connected - Click to authorize')}
               </p>
             </div>
             <div>
