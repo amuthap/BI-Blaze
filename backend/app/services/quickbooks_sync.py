@@ -46,6 +46,8 @@ class QuickBooksSync:
                 logger.error("No QuickBooks token found")
                 return
 
+            logger.info(f"Found QB token - Access token length: {len(token.access_token) if token.access_token else 0}, Realm ID: {token.realm_id}")
+
             # Check if token is expired and refresh if needed
             from datetime import datetime, timedelta
             if token.expires_at and datetime.utcnow() > token.expires_at - timedelta(minutes=5):
@@ -83,6 +85,8 @@ class QuickBooksSync:
 
     async def _make_request(self, endpoint: str, query: str = None) -> dict:
         """Make authenticated request to QuickBooks API with retry logic."""
+        logger.info(f"Making QB request - Token exists: {bool(self.access_token)}, Token length: {len(self.access_token) if self.access_token else 0}, Realm ID: {self.realm_id}")
+
         headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Accept": "application/json",
