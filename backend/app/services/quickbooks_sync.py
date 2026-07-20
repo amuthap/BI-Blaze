@@ -17,9 +17,9 @@ from app.services.quickbooks_oauth_v2 import QuickBooksOAuthV2
 logger = logging.getLogger(__name__)
 settings = get_settings()
 
-# Use sandbox environment (app is in Development mode in Intuit Developer Portal)
-ENVIRONMENT = "sandbox"
-QB_API_BASE = "https://sandbox-quickbooks.api.intuit.com" if ENVIRONMENT == "sandbox" else "https://quickbooks.api.intuit.com"
+# Use production environment (app is in Production mode in Intuit Developer Portal)
+ENVIRONMENT = "production"
+QB_API_BASE = "https://quickbooks.api.intuit.com" if ENVIRONMENT == "production" else "https://sandbox-quickbooks.api.intuit.com"
 
 
 class QuickBooksSync:
