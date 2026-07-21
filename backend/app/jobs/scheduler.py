@@ -1,9 +1,12 @@
 import logging
+import asyncio
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
 from app.services.zoho_sync import ZohoSyncService
+from app.services.quickbooks_mcp import QuickBooksMCPSync
+from app.db.database import SessionLocal
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -33,6 +36,25 @@ def sync_zoho_full():
         logger.error(f"Full sync failed: {e}", exc_info=True)
 
 
+def sync_quickbooks_daily():
+    """Run daily sync from QuickBooks via MCP - runs daily at 02:00 UTC."""
+    logger.info("=== Starting daily QB sync via MCP ===")
+    try:
+        db = SessionLocal()
+        sync_service = QuickBooksMCPSync(db)
+        # Run async function in sync context
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(sync_service.sync_all())
+            logger.info("QB MCP sync completed successfully")
+        finally:
+            loop.close()
+            db.close()
+    except Exception as e:
+        logger.error(f"QB MCP sync failed: {e}", exc_info=True)
+
+
 def start_scheduler():
     """Start the background scheduler."""
     if scheduler.running:
@@ -54,6 +76,15 @@ def start_scheduler():
         trigger=CronTrigger(day_of_week=6, hour=0, minute=0),
         id="zoho_full_sync",
         name="Zoho Full Sync (Weekly)",
+        replace_existing=True,
+    )
+
+    # Daily QB sync via MCP (02:00 UTC daily)
+    scheduler.add_job(
+        sync_quickbooks_daily,
+        trigger=CronTrigger(hour=2, minute=0),
+        id="qb_mcp_sync",
+        name="QuickBooks MCP Sync (Daily)",
         replace_existing=True,
     )
 
