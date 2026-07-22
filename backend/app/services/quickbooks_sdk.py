@@ -55,20 +55,32 @@ class QuickBooksSDKSync:
                 OAuthToken.provider == "quickbooks"
             ).first()
 
-            if not token_record:
+            if not token_record or not token_record.refresh_token:
                 raise ValueError("No QB refresh token found in database")
 
-            from intuitlib.client import AuthClient
+            # Use Intuit token endpoint to refresh
+            token_url = "https://oauth.platform.intuit.com/oauth2/tokens/bearer"
 
-            auth_client = AuthClient(
-                client_id=self.settings.qb_client_id,
-                client_secret=self.settings.qb_client_secret,
-                redirect_uri=self.settings.qb_redirect_uri,
-                environment="production"
-            )
+            import base64
 
-            # Refresh token to get new access token
-            tokens = auth_client.refresh(token_record.refresh_token)
+            # Prepare credentials
+            credentials = f"{self.settings.qb_client_id}:{self.settings.qb_client_secret}"
+            encoded = base64.b64encode(credentials.encode()).decode()
+
+            headers = {
+                "Authorization": f"Basic {encoded}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+
+            data = {
+                "grant_type": "refresh_token",
+                "refresh_token": token_record.refresh_token
+            }
+
+            response = requests.post(token_url, headers=headers, data=data)
+            response.raise_for_status()
+
+            tokens = response.json()
             self.access_token = tokens.get("access_token")
 
             logger.info(f"Access token refreshed, valid for {tokens.get('expires_in')} seconds")
