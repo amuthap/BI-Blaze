@@ -1,6 +1,8 @@
-"""QuickBooks data sync using Intuit SDK directly."""
+"""QuickBooks data sync using QB API directly."""
 
 import logging
+import requests
+import os
 from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List
@@ -8,53 +10,79 @@ from sqlalchemy.orm import Session
 
 from app.models.database import (
     QBCustomer, QBProduct, QBInvoice, QBInvoiceLineItem,
-    QBPayment
+    QBPayment, OAuthToken
 )
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+QB_API_BASE = "https://quickbooks.api.intuit.com/v2/company"
+
 
 class QuickBooksSDKSync:
-    """Sync QB data using official Intuit Python SDK."""
+    """Sync QB data using QB REST API with stored refresh token."""
 
     def __init__(self, db: Session):
         self.db = db
         self.settings = get_settings()
+        self.access_token = None
+        self.realm_id = self.settings.qb_realm_id
         logger.info("QuickBooksSDKSync initialized")
 
     async def sync_all(self):
-        """Sync all QB data using Intuit SDK."""
+        """Sync all QB data using QB REST API."""
         try:
-            from intuitlib.client import QuickBooksClient
+            logger.info("Starting QB sync via REST API...")
 
-            logger.info("Starting QB sync via Intuit SDK...")
+            # Get valid access token
+            await self._ensure_access_token()
 
-            # Initialize QB client with credentials
-            client = QuickBooksClient(
-                auth_client=None,  # We'll set tokens directly
-                realm_id=self.settings.qb_realm_id,
-                refresh_token=self.settings.qb_refresh_token,
-            )
+            await self.sync_customers()
+            await self.sync_products()
+            await self.sync_invoices()
+            await self.sync_payments()
 
-            await self.sync_customers(client)
-            await self.sync_products(client)
-            await self.sync_invoices(client)
-            await self.sync_payments(client)
-
-            logger.info("QB SDK sync completed successfully")
+            logger.info("QB sync completed successfully")
 
         except Exception as e:
-            logger.error(f"QB SDK sync failed: {str(e)}")
+            logger.error(f"QB sync failed: {str(e)}")
             raise
 
-    async def sync_customers(self, client):
+    async def _ensure_access_token(self):
+        """Get valid access token using refresh token."""
+        try:
+            token_record = self.db.query(OAuthToken).filter(
+                OAuthToken.provider == "quickbooks"
+            ).first()
+
+            if not token_record:
+                raise ValueError("No QB refresh token found in database")
+
+            from intuitlib.client import AuthClient
+
+            auth_client = AuthClient(
+                client_id=self.settings.qb_client_id,
+                client_secret=self.settings.qb_client_secret,
+                redirect_uri=self.settings.qb_redirect_uri,
+                environment="production"
+            )
+
+            # Refresh token to get new access token
+            tokens = auth_client.refresh(token_record.refresh_token)
+            self.access_token = tokens.get("access_token")
+
+            logger.info(f"Access token refreshed, valid for {tokens.get('expires_in')} seconds")
+
+        except Exception as e:
+            logger.error(f"Failed to refresh access token: {e}")
+            raise
+
+    async def sync_customers(self):
         """Sync QB customers."""
         logger.info("Syncing QB customers...")
         try:
-            # Use QBOS query
             query = "SELECT * FROM Customer"
-            customers_data = client.query(query)
+            customers_data = await self._query_qbo(query)
 
             logger.info(f"Retrieved {len(customers_data)} customers")
 
@@ -68,12 +96,12 @@ class QuickBooksSDKSync:
             logger.error(f"Customer sync failed: {e}")
             self.db.rollback()
 
-    async def sync_products(self, client):
+    async def sync_products(self):
         """Sync QB products/items."""
         logger.info("Syncing QB products...")
         try:
             query = "SELECT * FROM Item"
-            items_data = client.query(query)
+            items_data = await self._query_qbo(query)
 
             logger.info(f"Retrieved {len(items_data)} items")
 
@@ -87,12 +115,12 @@ class QuickBooksSDKSync:
             logger.error(f"Product sync failed: {e}")
             self.db.rollback()
 
-    async def sync_invoices(self, client):
+    async def sync_invoices(self):
         """Sync QB invoices."""
         logger.info("Syncing QB invoices...")
         try:
             query = "SELECT * FROM Invoice"
-            invoices_data = client.query(query)
+            invoices_data = await self._query_qbo(query)
 
             logger.info(f"Retrieved {len(invoices_data)} invoices")
 
@@ -106,12 +134,12 @@ class QuickBooksSDKSync:
             logger.error(f"Invoice sync failed: {e}")
             self.db.rollback()
 
-    async def sync_payments(self, client):
+    async def sync_payments(self):
         """Sync QB payments."""
         logger.info("Syncing QB payments...")
         try:
             query = "SELECT * FROM Payment"
-            payments_data = client.query(query)
+            payments_data = await self._query_qbo(query)
 
             logger.info(f"Retrieved {len(payments_data)} payments")
 
@@ -124,6 +152,29 @@ class QuickBooksSDKSync:
         except Exception as e:
             logger.error(f"Payment sync failed: {e}")
             self.db.rollback()
+
+    async def _query_qbo(self, query: str) -> List[Dict]:
+        """Execute QBOS query."""
+        try:
+            url = f"{QB_API_BASE}/{self.realm_id}/query"
+            headers = {
+                "Authorization": f"Bearer {self.access_token}",
+                "Accept": "application/json"
+            }
+            params = {"query": query}
+
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+
+            data = response.json()
+            return data.get("QueryResponse", {}).get("rows", []) or []
+
+        except requests.HTTPError as e:
+            logger.error(f"QB query failed: {e.response.status_code} - {e.response.text}")
+            raise
+        except Exception as e:
+            logger.error(f"Query execution failed: {e}")
+            raise
 
     def _create_or_update_customer(self, data: Dict[str, Any]) -> QBCustomer:
         """Create or update a customer."""
