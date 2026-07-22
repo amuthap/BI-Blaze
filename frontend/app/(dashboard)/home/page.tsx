@@ -147,12 +147,12 @@ export default function HomePage() {
         </>
       )}
 
-      {/* Detailed List Modal */}
-      <DetailedListModal
+      {/* Detailed List Modal - temporarily disabled */}
+      {/* <DetailedListModal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
         metricType={selectedMetric}
-      />
+      /> */}
     </div>
   );
 }
