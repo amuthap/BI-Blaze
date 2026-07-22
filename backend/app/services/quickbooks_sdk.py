@@ -58,8 +58,8 @@ class QuickBooksSDKSync:
             if not token_record or not token_record.refresh_token:
                 raise ValueError("No QB refresh token found in database")
 
-            # Use Intuit token endpoint to refresh
-            token_url = "https://oauth.platform.intuit.com/oauth2/tokens/bearer"
+            # Use Intuit token endpoint to refresh (correct endpoint)
+            token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
 
             import base64
 
