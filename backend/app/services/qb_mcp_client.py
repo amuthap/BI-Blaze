@@ -113,35 +113,35 @@ class QuickBooksMCPClient:
     async def query_customers(self) -> List[Dict[str, Any]]:
         """Query all customers from QB via MCP."""
         logger.info("Querying QB customers via MCP...")
-        result = await self._send_request("call_tool", {
-            "name": "query",
-            "arguments": {"query": "SELECT * FROM Customer"}
+        result = await self._send_request("tools/call", {
+            "name": "search_customers",
+            "arguments": {}
         })
-        return result.get("rows", [])
+        return result.get("customers", []) if isinstance(result, dict) else []
 
     async def query_invoices(self) -> List[Dict[str, Any]]:
         """Query all invoices from QB via MCP."""
         logger.info("Querying QB invoices via MCP...")
-        result = await self._send_request("call_tool", {
-            "name": "query",
-            "arguments": {"query": "SELECT * FROM Invoice"}
+        result = await self._send_request("tools/call", {
+            "name": "search_invoices",
+            "arguments": {}
         })
-        return result.get("rows", [])
+        return result.get("invoices", []) if isinstance(result, dict) else []
 
     async def query_items(self) -> List[Dict[str, Any]]:
         """Query all items (products) from QB via MCP."""
         logger.info("Querying QB items via MCP...")
-        result = await self._send_request("call_tool", {
-            "name": "query",
-            "arguments": {"query": "SELECT * FROM Item"}
+        result = await self._send_request("tools/call", {
+            "name": "search_items",
+            "arguments": {}
         })
-        return result.get("rows", [])
+        return result.get("items", []) if isinstance(result, dict) else []
 
     async def query_payments(self) -> List[Dict[str, Any]]:
         """Query all payments from QB via MCP."""
         logger.info("Querying QB payments via MCP...")
-        result = await self._send_request("call_tool", {
-            "name": "query",
-            "arguments": {"query": "SELECT * FROM Payment"}
+        result = await self._send_request("tools/call", {
+            "name": "search_payments",
+            "arguments": {}
         })
-        return result.get("rows", [])
+        return result.get("payments", []) if isinstance(result, dict) else []
