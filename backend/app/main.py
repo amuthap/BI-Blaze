@@ -84,12 +84,14 @@ def create_app() -> FastAPI:
 
     # Include API routers
     from app.api.auth import router as auth_router
+    from app.api.quickbooks_auth import router as qb_auth_router
     from app.api.dashboard import router as dashboard_router
     from app.api.query import router as query_router
     from app.api.details import router as details_router
     from app.api.reports import router as reports_router
 
     app.include_router(auth_router)
+    app.include_router(qb_auth_router)
     app.include_router(dashboard_router)
     app.include_router(query_router)
     app.include_router(details_router)
