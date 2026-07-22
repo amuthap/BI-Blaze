@@ -5,7 +5,7 @@ from apscheduler.triggers.cron import CronTrigger
 from datetime import datetime
 
 from app.services.zoho_sync import ZohoSyncService
-from app.services.quickbooks_mcp import QuickBooksMCPSync
+from app.services.quickbooks_sdk import QuickBooksSDKSync
 from app.db.database import SessionLocal
 from app.utils.logger import get_logger
 
@@ -37,22 +37,22 @@ def sync_zoho_full():
 
 
 def sync_quickbooks_daily():
-    """Run daily sync from QuickBooks via MCP - runs daily at 02:00 UTC."""
-    logger.info("=== Starting daily QB sync via MCP ===")
+    """Run daily sync from QuickBooks via SDK - runs daily at 02:00 UTC."""
+    logger.info("=== Starting daily QB sync via SDK ===")
     try:
         db = SessionLocal()
-        sync_service = QuickBooksMCPSync(db)
+        sync_service = QuickBooksSDKSync(db)
         # Run async function in sync context
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(sync_service.sync_all())
-            logger.info("QB MCP sync completed successfully")
+            logger.info("QB SDK sync completed successfully")
         finally:
             loop.close()
             db.close()
     except Exception as e:
-        logger.error(f"QB MCP sync failed: {e}", exc_info=True)
+        logger.error(f"QB SDK sync failed: {e}", exc_info=True)
 
 
 def start_scheduler():
