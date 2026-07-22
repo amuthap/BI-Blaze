@@ -18,22 +18,41 @@ class QuickBooksMCPClient:
 
         Args:
             mcp_server_cmd: Command to start MCP server.
-                          Default: "python -m quickbooks_mcp"
+                          Default: Node.js QB MCP server from Intuit
         """
-        self.mcp_server_cmd = mcp_server_cmd or "python -m quickbooks_mcp"
+        # Use Node.js QB MCP server - assumes it's installed at ../../../quickbooks-online-mcp-server
+        self.mcp_server_cmd = mcp_server_cmd or "node /home/BlazeBI/projects/BI-Blaze-Frontend/quickbooks-online-mcp-server/dist/index.js"
         self.process = None
         self.request_id = 0
 
     async def connect(self):
         """Start the MCP server process."""
         try:
+            import os
+            from app.config import get_settings
+
+            settings = get_settings()
+
+            # Prepare environment variables for QB MCP server
+            env = os.environ.copy()
+            env['QUICKBOOKS_CLIENT_ID'] = settings.qb_client_id or ""
+            env['QUICKBOOKS_CLIENT_SECRET'] = settings.qb_client_secret or ""
+            env['QUICKBOOKS_REALM_ID'] = settings.qb_realm_id or ""
+            env['QUICKBOOKS_REFRESH_TOKEN'] = os.environ.get('QB_REFRESH_TOKEN', "")
+            env['QUICKBOOKS_ENVIRONMENT'] = os.environ.get('QUICKBOOKS_ENVIRONMENT', 'production')
+            env['QUICKBOOKS_REDIRECT_URI'] = settings.qb_redirect_uri or ""
+
+            logger.info(f"Starting QB MCP server: {self.mcp_server_cmd}")
+
             self.process = await asyncio.create_subprocess_exec(
-                *self.mcp_server_cmd.split(),
+                'node',
+                '/home/BlazeBI/projects/BI-Blaze-Frontend/quickbooks-online-mcp-server/dist/index.js',
                 stdin=asyncio.subprocess.PIPE,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                env=env,
             )
-            logger.info("QB MCP server started")
+            logger.info("QB MCP server started successfully")
         except Exception as e:
             logger.error(f"Failed to start QB MCP server: {e}")
             raise
