@@ -291,14 +291,17 @@ class ReportsService:
         }
 
         for inv in invoices:
-            days_old = (today - inv.invoice_date).days
+            days_old = (today - inv.invoice_date).days if inv.invoice_date else 0
             amount = float(inv.total)
             is_overdue = inv.due_date and inv.due_date < today and inv.payment_status != 'paid'
+
+            customer = self.db.query(Customer).filter_by(id=inv.customer_id).first() if inv.customer_id else None
+            customer_name = customer.name if customer else 'Unknown'
 
             if days_old <= 30:
                 aging_buckets['0-30_days'].append({
                     'invoice_number': inv.invoice_number,
-                    'customer': self.db.query(Customer).filter_by(id=inv.customer_id).first().name,
+                    'customer': customer_name,
                     'amount': amount,
                     'status': inv.payment_status,
                     'days_old': days_old,
@@ -321,7 +324,7 @@ class ReportsService:
                 for bucket, items in aging_buckets.items()
             },
             'oldest_invoices': sorted(
-                [inv for inv in invoices if inv.status != 'draft'],
+                [inv for inv in invoices if inv.status != 'draft' and inv.invoice_date],
                 key=lambda x: (today - x.invoice_date).days,
                 reverse=True
             )[:10]
