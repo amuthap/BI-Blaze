@@ -26,13 +26,8 @@ class QuickBooksSDKSync:
         self.db = db
         self.settings = get_settings()
         self.access_token = None
-
-        # Get realm_id from database (saved during OAuth callback)
-        token_record = db.query(OAuthToken).filter(
-            OAuthToken.provider == "quickbooks"
-        ).first()
-        self.realm_id = token_record.realm_id if token_record and token_record.realm_id else self.settings.qb_realm_id
-        logger.info(f"QuickBooksSDKSync initialized with realm_id: {self.realm_id}")
+        self.realm_id = self.settings.qb_realm_id
+        logger.info("QuickBooksSDKSync initialized")
 
     async def sync_all(self):
         """Sync all QB data using QB REST API."""
@@ -184,7 +179,7 @@ class QuickBooksSDKSync:
             response.raise_for_status()
 
             data = response.json()
-            return data.get("QueryResponse", []) or []
+            return data.get("QueryResponse", {}).get("rows", []) or []
 
         except requests.HTTPError as e:
             logger.error(f"QB query failed: {e.response.status_code} - {e.response.text}")
