@@ -23,7 +23,7 @@ export function PaymentHealthWidget() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/reports/payment-health`);
+        const response = await fetch('/api/reports/payment-health');
         if (!response.ok) throw new Error('Failed to fetch payment health');
         const result = await response.json();
         setData(result.data);
