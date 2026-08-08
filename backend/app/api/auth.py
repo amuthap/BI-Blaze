@@ -190,20 +190,24 @@ async def zoho_status(db: Session = Depends(get_db)):
 @router.get("/quickbooks/login")
 async def quickbooks_login():
     """Redirect user to QuickBooks OAuth login."""
-    from urllib.parse import quote
-    from fastapi.responses import RedirectResponse
+    from urllib.parse import quote, urlencode
+    from starlette.responses import RedirectResponse
 
-    # Build OAuth URL without realmId (QB provides it in callback)
-    auth_url = (
-        f"https://appcenter.intuit.com/connect/oauth2"
-        f"?client_id={settings.qb_client_id}"
-        f"&response_type=code"
-        f"&scope=com.intuit.quickbooks.accounting"
-        f"&redirect_uri={quote(settings.qb_redirect_uri, safe='')}"
-        f"&state=security_token"
-    )
-    # Return proper redirect, not JSON (avoids HTML entity encoding)
-    return RedirectResponse(url=auth_url)
+    # Use final Intuit endpoint (they redirect /connect/oauth2 → /app/connect/oauth2)
+    params = {
+        "client_id": settings.qb_client_id,
+        "response_type": "code",
+        "scope": "com.intuit.quickbooks.accounting",
+        "redirect_uri": settings.qb_redirect_uri,
+        "state": "security_token"
+    }
+
+    # Build URL with proper encoding (no HTML entities)
+    auth_url = "https://appcenter.intuit.com/app/connect/oauth2?" + urlencode(params)
+
+    # Return raw redirect response (avoids any HTML escaping)
+    response = RedirectResponse(url=auth_url, status_code=302)
+    return response
 
 
 @router.get("/quickbooks/callback")
