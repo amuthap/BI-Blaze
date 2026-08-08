@@ -50,8 +50,9 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:3000",
             "http://localhost:3001",
             "http://127.0.0.1:3001",
+            "https://blazebi.hyperbig.com",
             "*",  # Allow all for development
-        ] if settings.debug else ["https://yourdomain.com"],
+        ] if settings.debug else ["https://blazebi.hyperbig.com"],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
