@@ -36,7 +36,7 @@ export function MonthlyComparisonChart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/reports/monthly-comparison`);
+        const response = await fetch(`/api/reports/monthly-comparison`);
         if (!response.ok) throw new Error('Failed to fetch monthly comparison');
         const result = await response.json();
         setData(result.data.monthly_trends || []);

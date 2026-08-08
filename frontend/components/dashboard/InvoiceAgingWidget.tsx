@@ -25,7 +25,7 @@ export function InvoiceAgingWidget() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/reports/invoice-aging`);
+        const response = await fetch(`/api/reports/invoice-aging`);
         if (!response.ok) throw new Error('Failed to fetch invoice aging');
         const result = await response.json();
         setData(result.data);

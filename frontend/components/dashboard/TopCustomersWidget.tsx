@@ -18,8 +18,7 @@ export function TopCustomersWidget() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/reports/top-customers?limit=5`);
+        const response = await fetch(`/api/reports/top-customers?limit=5`);
         if (!response.ok) throw new Error('Failed to fetch top customers');
         const result = await response.json();
 

@@ -30,6 +30,16 @@ async def zoho_login():
     return {"auth_url": auth_url}
 
 
+@router.get("/callback")
+async def callback(
+    code: str = Query(...),
+    state: str = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Handle OAuth callback (simple redirect)."""
+    return await zoho_callback(code=code, state=state, db=db)
+
+
 @router.get("/zoho/callback")
 async def zoho_callback(
     code: str = Query(...),

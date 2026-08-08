@@ -28,7 +28,7 @@ export function CustomerSegmentationWidget() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/reports/customer-segmentation`);
+        const response = await fetch(`/api/reports/customer-segmentation`);
         if (!response.ok) throw new Error('Failed to fetch customer segmentation');
         const result = await response.json();
         setData(result.data);

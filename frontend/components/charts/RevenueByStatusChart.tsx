@@ -23,8 +23,7 @@ export function RevenueByStatusChart() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-        const response = await fetch(`${apiUrl}/api/reports/payment-status`);
+        const response = await fetch(`/api/reports/payment-status`);
         if (!response.ok) throw new Error('Failed to fetch payment status');
         const result = await response.json();
 

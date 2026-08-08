@@ -1,7 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import * as Types from '@/lib/types';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL !== undefined ? process.env.NEXT_PUBLIC_API_URL : '';
 
 class APIClient {
   private axiosInstance: AxiosInstance;
