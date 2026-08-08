@@ -197,6 +197,7 @@ async def quickbooks_login():
         f"&scope=com.intuit.quickbooks.accounting"
         f"&redirect_uri={settings.qb_redirect_uri}"
         f"&state=security_token"
+        f"&realmId="  # Let user select realm
     )
     return {"auth_url": auth_url}
 
