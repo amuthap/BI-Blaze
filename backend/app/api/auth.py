@@ -185,3 +185,162 @@ async def zoho_status(db: Session = Depends(get_db)):
             "message": "Error checking authentication status",
             "error": str(e),
         }
+
+
+@router.get("/quickbooks/login")
+async def quickbooks_login():
+    """Redirect user to QuickBooks OAuth login."""
+    auth_url = (
+        f"https://appcenter.intuit.com/connect/oauth2"
+        f"?client_id={settings.qb_client_id}"
+        f"&response_type=code"
+        f"&scope=com.intuit.quickbooks.accounting"
+        f"&redirect_uri={settings.qb_redirect_uri}"
+        f"&state=security_token"
+    )
+    return {"auth_url": auth_url}
+
+
+@router.get("/quickbooks/callback")
+async def quickbooks_callback(
+    code: str = Query(...),
+    state: str = Query(None),
+    realmId: str = Query(None),
+    db: Session = Depends(get_db),
+):
+    """Handle QuickBooks OAuth callback and exchange code for token."""
+    try:
+        if not code:
+            raise HTTPException(status_code=400, detail="Authorization code missing")
+
+        if not realmId:
+            raise HTTPException(status_code=400, detail="Realm ID missing")
+
+        logger.info(f"Received QB OAuth callback for realm {realmId}")
+
+        # Exchange code for token
+        import base64
+        import requests
+
+        token_url = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer"
+
+        credentials = f"{settings.qb_client_id}:{settings.qb_client_secret}"
+        encoded = base64.b64encode(credentials.encode()).decode()
+
+        headers = {
+            "Authorization": f"Basic {encoded}",
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
+
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": settings.qb_redirect_uri
+        }
+
+        response = requests.post(token_url, headers=headers, data=data)
+        response.raise_for_status()
+
+        token_data = response.json()
+
+        logger.info(f"QB tokens received: {list(token_data.keys())}")
+
+        # Extract tokens
+        access_token = token_data.get("access_token", "")
+        refresh_token = token_data.get("refresh_token", "")
+        expires_in = token_data.get("expires_in", 3600)
+
+        if not access_token or not refresh_token:
+            logger.error(f"Missing tokens in QB response: {token_data}")
+            raise HTTPException(status_code=400, detail="Failed to obtain tokens from QuickBooks")
+
+        # Save OAuth token in database
+        from app.models.database import OAuthToken
+        from datetime import datetime, timedelta
+
+        try:
+            oauth_token = db.query(OAuthToken).filter(
+                OAuthToken.provider == "quickbooks"
+            ).first()
+
+            if oauth_token:
+                logger.info("Updating existing QB OAuth token")
+                oauth_token.access_token = access_token
+                oauth_token.refresh_token = refresh_token
+                oauth_token.expires_at = datetime.utcnow() + timedelta(seconds=expires_in)
+                oauth_token.updated_at = datetime.utcnow()
+            else:
+                logger.info("Creating new QB OAuth token record")
+                oauth_token = OAuthToken(
+                    provider="quickbooks",
+                    access_token=access_token,
+                    refresh_token=refresh_token,
+                    expires_at=datetime.utcnow() + timedelta(seconds=expires_in)
+                )
+                db.add(oauth_token)
+
+            # Save realm_id to a config file or return it to the user
+            from app.models.database import SyncHistory, SyncTypeEnum, SyncStatusEnum
+            sync_record = SyncHistory(
+                entity_type="quickbooks_auth",
+                sync_type=SyncTypeEnum.full,
+                status=SyncStatusEnum.completed,
+                records_synced=1,
+                error_message=None
+            )
+            db.add(sync_record)
+
+            db.commit()
+            logger.info("QB OAuth tokens saved successfully")
+
+        except Exception as e:
+            logger.error(f"Failed to save QB tokens: {e}", exc_info=True)
+            db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to save tokens: {e}")
+
+        return {
+            "status": "success",
+            "message": "QuickBooks authentication successful!",
+            "realm_id": realmId,
+            "access_token": access_token[:50] + "...",
+            "note": f"Save this REALM_ID: {realmId}\nAdd to your .env: QB_REALM_ID={realmId}"
+        }
+
+    except requests.HTTPError as e:
+        logger.error(f"QB token exchange failed: {e.response.text}")
+        raise HTTPException(status_code=400, detail=f"QB token exchange failed: {e.response.text}")
+    except Exception as e:
+        logger.error(f"QB OAuth callback error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/quickbooks/status")
+async def quickbooks_status(db: Session = Depends(get_db)):
+    """Check if QuickBooks API is authenticated."""
+    from app.models.database import OAuthToken
+
+    try:
+        qb_token = db.query(OAuthToken).filter(
+            OAuthToken.provider == "quickbooks"
+        ).first()
+
+        if qb_token and qb_token.refresh_token:
+            return {
+                "authenticated": True,
+                "last_auth": str(qb_token.updated_at),
+                "message": "QuickBooks API is authenticated",
+                "realm_id_needed": not bool(settings.qb_realm_id),
+            }
+        else:
+            return {
+                "authenticated": False,
+                "message": "Please authenticate with QuickBooks",
+                "login_url": "/api/auth/quickbooks/login",
+            }
+    except Exception as e:
+        logger.error(f"Error checking QB status: {e}")
+        return {
+            "authenticated": False,
+            "message": "Error checking authentication status",
+            "error": str(e),
+        }
