@@ -193,7 +193,7 @@ async def quickbooks_login():
     from urllib.parse import quote, urlencode
     from starlette.responses import RedirectResponse
 
-    # Use final Intuit endpoint (they redirect /connect/oauth2 → /app/connect/oauth2)
+    # Use official Intuit OAuth endpoint (from docs)
     params = {
         "client_id": settings.qb_client_id,
         "response_type": "code",
@@ -202,8 +202,8 @@ async def quickbooks_login():
         "state": "security_token"
     }
 
-    # Build URL with proper encoding (no HTML entities)
-    auth_url = "https://appcenter.intuit.com/app/connect/oauth2?" + urlencode(params)
+    # Build URL with proper encoding (following official docs)
+    auth_url = "https://appcenter.intuit.com/connect/oauth2?" + urlencode(params)
 
     # Return raw redirect response (avoids any HTML escaping)
     response = RedirectResponse(url=auth_url, status_code=302)
