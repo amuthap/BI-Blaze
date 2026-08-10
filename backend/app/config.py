@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # QuickBooks Online (Virtunest Account)
     qb_client_id: str = ""
     qb_client_secret: str = ""
-    qb_redirect_uri: str = "https://blazebi.hyperbig.com/api/auth/quickbooks/callback"
+    qb_redirect_uri: str = "https://blazebi.hyperbig.com/oauth-redirect"
     qb_realm_id: str = ""
     qb_refresh_token: str = ""
 
